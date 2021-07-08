@@ -6,7 +6,7 @@ on:
 
 jobs:
 
-  build:
+  test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -34,10 +34,10 @@ jobs:
           cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
           SKIP_DOCKER=true ./scripts/init_db.sh
 
-      - name: Build
+      - name: Test
         uses: actions-rs/cargo@v1
         with:
-          command: build
+          command: test
 
       - name: Save Cache
         uses: actions/cache@v2
@@ -50,9 +50,10 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ github.workflow }}-${{ github.sha }}
 
+
   lint:
     name: lint and format
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -103,54 +104,9 @@ jobs:
         with:
           command: clippy
 
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:12
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v2
-
-      - name: Restore Cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ github.workflow }}-${{ github.sha }}
-
-      - name: Rust Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-
-      - name: Migrate database
-        run: |
-          sudo apt-get install libpq-dev -y
-          cargo install --version=0.5.5 --locked sqlx-cli --no-default-features --features postgres
-          SKIP_DOCKER=true ./scripts/init_db.sh
-
-      - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-
   coverage:
     name: code coverage
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
     services:
       postgres:
